@@ -1,103 +1,108 @@
 #include <iostream>
-#include <pthread.h>
-#include <semaphore.h>
-#include <unistd.h>
+#include <thread>
+#include <atomic>
+#include <chrono>
 
 using namespace std;
+
+// structure spinlock
+struct SpinLock {
+    atomic<bool> locked;
+
+    SpinLock() : locked(false) {}
+
+    void lock() {
+        while (true) {
+            if (!locked.exchange(true)) {
+                return; // successful lock
+            }
+            // wait if someone is holding the lock
+            this_thread::yield();
+        }
+    }
+
+    void unlock() {
+        locked.store(false);
+    }
+};
 
 // numebr of philosphers
 int num_philos;
 
-sem_t* forks;
+// spinlock array
+SpinLock* forks;
 
 // number of iterations
 int iterations;
 
-void* philosopher(void* arg) {
-    // get philosopher number
-    int phil_no = *(int*)arg;
+void philosopher(int phil_no) {
     int iter = 0;
 
     while (iter < iterations) {
-        // thinking
+		//thinking
         cout << "Filozof " << phil_no << " myśli.\n";
-        sleep(1); //wait
+        this_thread::sleep_for(chrono::seconds(1)); // wait
 
-        // eating
+		//eating
         cout << "Filozof " << phil_no << " próbuje jeść.\n";
         if (phil_no % 2 == 0) {
             // even number
             cout << "Filozof " << phil_no << " próbuje podnieść lewy widelec.\n";
-            sem_wait(&forks[phil_no]); // get left fork
+            forks[phil_no].lock(); // get left fork
             cout << "Filozof " << phil_no << " podniósł lewy widelec.\n";
             cout << "Filozof " << phil_no << " próbuje podnieść prawy widelec.\n";
-            sem_wait(&forks[(phil_no + 1) % num_philos]); // get right fork
+            forks[(phil_no + 1) % num_philos].lock(); // get right fork
             cout << "Filozof " << phil_no << " podniósł prawy widelec.\n";
         } else {
             // odd number
             cout << "Filozof " << phil_no << " próbuje podnieść prawy widelec.\n";
-            sem_wait(&forks[(phil_no + 1) % num_philos]); // get right fork
+            forks[(phil_no + 1) % num_philos].lock(); // get right fork
             cout << "Filozof " << phil_no << " podniósł prawy widelec.\n";
             cout << "Filozof " << phil_no << " próbuje podnieść lewy widelec.\n";
-            sem_wait(&forks[phil_no]); // get left fork
+            forks[phil_no].lock(); // get left fork
             cout << "Filozof " << phil_no << " podniósł lewy widelec.\n";
         }
 
         cout << "Filozof " << phil_no << " je.\n";
-        sleep(1); // eat
+        this_thread::sleep_for(chrono::seconds(1)); // eat
 
-        //put down fork
+		//put down fork
         cout << "Filozof " << phil_no << " próbuje odłożyć prawy widelec.\n";
-        sem_post(&forks[(phil_no + 1) % num_philos]); // right fork
+        forks[(phil_no + 1) % num_philos].unlock(); // right fork
         cout << "Filozof " << phil_no << " odłożył prawy widelec.\n";
         cout << "Filozof " << phil_no << " próbuje odłożyć lewy widelec.\n";
-        sem_post(&forks[phil_no]); // left fork
+        forks[phil_no].unlock(); // left fork
         cout << "Filozof " << phil_no << " odłożył lewy widelec.\n";
 
         iter++;
     }
 
     cout << "Filozof " << phil_no << " zakończył działanie.\n";
-    return NULL;
 }
 
 int main() {
-    // philosophers number
+	// philosophers number
     cout << "Podaj liczbę filozofów: ";
     cin >> num_philos;
 
-    // iterations number
+	// iterations number
     cout << "Podaj liczbę iteracji: ";
     cin >> iterations;
 
-    forks = new sem_t[num_philos];
+    forks = new SpinLock[num_philos];
 
-    // semaphores initialization
+	// creating threads
+    thread threads[num_philos];
     for (int i = 0; i < num_philos; i++) {
-        sem_init(&forks[i], 0, 1);
+        threads[i] = thread(philosopher, i);
+    }
+	
+	// thread synchronization
+    for (int i = 0; i < num_philos; i++) {
+        threads[i].join();
     }
 
-    // threads array
-    pthread_t threads[num_philos];
-    int phil_no[num_philos]; // philospphers number array
-
-    // creating threads
-    for (int i = 0; i < num_philos; i++) {
-        phil_no[i] = i; // assign philo number
-        pthread_create(&threads[i], NULL, philosopher, &phil_no[i]); // create thread
-    }
-
-    // waiting for threads to finish
-    for (int i = 0; i < num_philos; i++) {
-        pthread_join(threads[i], NULL);
-    }
-
-    // delete semaphores
-    for (int i = 0; i < num_philos; i++) {
-        sem_destroy(&forks[i]);
-    }
-    // release memory
-    delete[] forks; 
+    delete[] forks;
 
     return 0;
 }
