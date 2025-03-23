@@ -26,7 +26,7 @@ struct SpinLock {
     }
 };
 
-// numebr of philosphers
+// number of philosophers
 int num_philos;
 
 // spinlock array
@@ -39,65 +39,67 @@ void philosopher(int phil_no) {
     int iter = 0;
 
     while (iter < iterations) {
-		//thinking
-        cout << "Filozof " << phil_no << " myśli.\n";
+        //thinking
+        cout << "Philosopher " << phil_no << " is thinking.\n";
         this_thread::sleep_for(chrono::seconds(1)); // wait
 
-		//eating
-        cout << "Filozof " << phil_no << " próbuje jeść.\n";
+        //eating
+        cout << "Philosopher " << phil_no << " is trying to eat.\n";
         if (phil_no % 2 == 0) {
             // even number
-            cout << "Filozof " << phil_no << " próbuje podnieść lewy widelec.\n";
+            cout << "Philosopher " << phil_no << " is trying to pick up the left fork.\n";
             forks[phil_no].lock(); // get left fork
-            cout << "Filozof " << phil_no << " podniósł lewy widelec.\n";
-            cout << "Filozof " << phil_no << " próbuje podnieść prawy widelec.\n";
+            cout << "Philosopher " << phil_no << " picked up the left fork.\n";
+            cout << "Philosopher " << phil_no << " is trying to pick up the right fork.\n";
             forks[(phil_no + 1) % num_philos].lock(); // get right fork
-            cout << "Filozof " << phil_no << " podniósł prawy widelec.\n";
+            cout << "Philosopher " << phil_no << " picked up the right fork.\n";
         } else {
             // odd number
-            cout << "Filozof " << phil_no << " próbuje podnieść prawy widelec.\n";
+            cout << "Philosopher " << phil_no << " is trying to pick up the right fork.\n";
             forks[(phil_no + 1) % num_philos].lock(); // get right fork
-            cout << "Filozof " << phil_no << " podniósł prawy widelec.\n";
-            cout << "Filozof " << phil_no << " próbuje podnieść lewy widelec.\n";
+            cout << "Philosopher " << phil_no << " picked up the right fork.\n";
+            cout << "Philosopher " << phil_no << " is trying to pick up the left fork.\n";
             forks[phil_no].lock(); // get left fork
-            cout << "Filozof " << phil_no << " podniósł lewy widelec.\n";
+            cout << "Philosopher " << phil_no << " picked up the left fork.\n";
         }
 
-        cout << "Filozof " << phil_no << " je.\n";
+        cout << "Philosopher " << phil_no << " is eating.\n";
         this_thread::sleep_for(chrono::seconds(1)); // eat
 
-		//put down fork
-        cout << "Filozof " << phil_no << " próbuje odłożyć prawy widelec.\n";
+        //put down fork
+        cout << "Philosopher " << phil_no << " is trying to put down the right fork.\n";
         forks[(phil_no + 1) % num_philos].unlock(); // right fork
-        cout << "Filozof " << phil_no << " odłożył prawy widelec.\n";
-        cout << "Filozof " << phil_no << " próbuje odłożyć lewy widelec.\n";
+        cout << "Philosopher " << phil_no << " put down the right fork.\n";
+        cout << "Philosopher " << phil_no << " is trying to put down the left fork.\n";
         forks[phil_no].unlock(); // left fork
-        cout << "Filozof " << phil_no << " odłożył lewy widelec.\n";
+        cout << "Philosopher " << phil_no << " put down the left fork.\n";
 
         iter++;
     }
 
-    cout << "Filozof " << phil_no << " zakończył działanie.\n";
+    cout << "Philosopher " << phil_no << " has finished.\n";
 }
 
 int main() {
-	// philosophers number
-    cout << "Podaj liczbę filozofów: ";
-    cin >> num_philos;
-
-	// iterations number
-    cout << "Podaj liczbę iteracji: ";
-    cin >> iterations;
+    do {
+        // philosophers number
+        cout << "Enter the number of philosophers (minimum 2): ";
+        cin >> num_philos;
+    
+        // iterations number
+        cout << "Enter the number of iterations (minimum 1): ";
+        cin >> iterations;
+    } while (num_philos < 2 || iterations < 1);
 
     forks = new SpinLock[num_philos];
 
-	// creating threads
+    // creating threads
     thread threads[num_philos];
     for (int i = 0; i < num_philos; i++) {
         threads[i] = thread(philosopher, i);
     }
-	
-	// thread synchronization
+    
+    // thread synchronization
     for (int i = 0; i < num_philos; i++) {
         threads[i].join();
     }
